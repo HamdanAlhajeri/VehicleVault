@@ -11,9 +11,35 @@ import Messages from './components/Messages/Messages';
 
 function App() {
   return (
+<<<<<<< HEAD
     <AuthProvider>
       <div className="App">
         <NavBar />
+=======
+    <Router>
+      <div>
+        {/* Navigation Bar Hello this is a test*/}
+        <nav>
+          <ul>
+            <li>
+              <Link to="/">Home</Link>
+            </li>
+            <li>
+              <Link to="/register">Register</Link>
+            </li>
+            <li>
+              <Link to="/login">Login</Link>
+            </li>
+            {user && (
+              <li>
+                <Link to="/profile">Profile</Link>
+              </li>
+            )}
+          </ul>
+        </nav>
+
+        {/* Routes for different components */}
+>>>>>>> 97ea5d388bd31f9128fa8475b6c0e76720079a93
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/add-listing" element={<AddListing />} />
