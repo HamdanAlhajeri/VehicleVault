@@ -1,48 +1,29 @@
-import React, { useState } from "react";
-import { BrowserRouter as Router, Route, Routes, Link, Navigate } from "react-router-dom";
-import Home from "./components/Home";
-import Register from "./components/Register";
-import Login from "./components/Login";
-import Profile from "./components/Profile";
+import React from 'react';
+import { Routes, Route } from 'react-router-dom';
+import Home from './components/Home';
+import AddListing from './components/AddListing';
+import Login from './components/Login';
+import Register from './components/Register';
+import NavBar from './components/NavBar';
+import { AuthProvider } from './context/AuthContext';
+import Profile from './components/Profile';
+import Messages from './components/Messages/Messages';
 
 function App() {
-  const [user, setUser] = useState(null); // User state to manage login
-
   return (
-    <Router>
-      <div>
-        {/* Navigation Bar */}
-        <nav>
-          <ul>
-            <li>
-              <Link to="/">Home</Link>
-            </li>
-            <li>
-              <Link to="/register">Register</Link>
-            </li>
-            <li>
-              <Link to="/login">Login</Link>
-            </li>
-            {user && (
-              <li>
-                <Link to="/profile">Profile</Link>
-              </li>
-            )}
-          </ul>
-        </nav>
-
-        {/* Routes for different components */}
+    <AuthProvider>
+      <div className="App">
+        <NavBar />
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/register" element={<Register setUser={setUser} />} />
-          <Route path="/login" element={<Login setUser={setUser} />} />
-          <Route
-            path="/profile"
-            element={user ? <Profile user={user} setUser={setUser} /> : <Navigate to="/login" />}
-          />
+          <Route path="/add-listing" element={<AddListing />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/messages" element={<Messages />} />
         </Routes>
       </div>
-    </Router>
+    </AuthProvider>
   );
 }
 
