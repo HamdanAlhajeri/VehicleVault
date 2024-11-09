@@ -1,2 +1,5 @@
 **/database.sqlite
 **/node_modules/
+**/*.db
+**/seedData.js
+documentation.txt

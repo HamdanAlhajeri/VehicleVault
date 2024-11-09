@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Users from './pages/Users';
 import Dashboard from './pages/Dashboard';
+import AddCar from './pages/AddCar';
 import './App.css';
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/add-car" element={<AddCar />} />
         </Routes>
       </div>
     </Router>
