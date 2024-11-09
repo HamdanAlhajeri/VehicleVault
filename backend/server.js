@@ -1,12 +1,16 @@
 const express = require('express');
 const cors = require('cors');
-const db = require('./config/db');  // Use the existing db connection
+const sqlite3 = require('better-sqlite3');
+const path = require('path');
 const authRoutes = require('./routes/auth');
 
 const app = express();
 
+// Create cars database connection
+const carsDb = new sqlite3(path.join(__dirname, './cars.db'));
+
 // Create cars table if it doesn't exist
-db.exec(`
+carsDb.exec(`
   CREATE TABLE IF NOT EXISTS cars (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     make TEXT NOT NULL,
@@ -33,7 +37,7 @@ app.post('/api/cars', (req, res) => {
   try {
     const { make, model, year, price, description, userId, image, imageType } = req.body;
     
-    const stmt = db.prepare(`
+    const stmt = carsDb.prepare(`
       INSERT INTO cars (make, model, year, price, description, image, imageType, userId) 
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
@@ -53,7 +57,7 @@ app.post('/api/cars', (req, res) => {
 // Get all cars
 app.get('/api/cars', (req, res) => {
   try {
-    const stmt = db.prepare('SELECT * FROM cars ORDER BY createdAt DESC');
+    const stmt = carsDb.prepare('SELECT * FROM cars ORDER BY createdAt DESC');
     const cars = stmt.all();
     res.json(cars);
   } catch (error) {
@@ -64,7 +68,7 @@ app.get('/api/cars', (req, res) => {
 // Get single car image
 app.get('/api/cars/:id/image', (req, res) => {
   try {
-    const stmt = db.prepare('SELECT image, imageType FROM cars WHERE id = ?');
+    const stmt = carsDb.prepare('SELECT image, imageType FROM cars WHERE id = ?');
     const row = stmt.get(req.params.id);
     
     if (!row || !row.image) {
