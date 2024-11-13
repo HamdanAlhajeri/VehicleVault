@@ -2,7 +2,10 @@ const express = require('express');
 const cors = require('cors');
 const sqlite3 = require('better-sqlite3');
 const path = require('path');
+const OpenAI = require('openai');
 const authRoutes = require('./routes/auth');
+
+require('dotenv').config();
 
 const app = express();
 
@@ -28,6 +31,56 @@ carsDb.exec(`
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
+
+// OpenAI API setup
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// Chatbot route
+app.post('/api/chatbot', async (req, res) => {
+  try {
+    // Check if API key exists
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OpenAI API key is not configured');
+    }
+
+    const { message } = req.body;
+    console.log('Received message:', message);
+
+    // Test API key by making a simple request
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [{ role: 'user', content: message }],
+      max_tokens: 150,
+    });
+
+    if (!response.choices || response.choices.length === 0) {
+      throw new Error('Invalid response from OpenAI');
+    }
+
+    const reply = response.choices[0].message.content;
+    console.log('AI Response:', reply);
+
+    res.json({ reply });
+
+  } catch (error) {
+    console.error('Server Error:', {
+      message: error.message,
+      stack: error.stack,
+      type: error.constructor.name
+    });
+    
+    res.status(500).json({ 
+      error: error.message || 'Failed to communicate with chatbot',
+      type: error.constructor.name
+    });
+  }
+});
 
 // Routes
 app.use('/api', authRoutes);

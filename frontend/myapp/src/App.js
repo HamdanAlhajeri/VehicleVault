@@ -6,6 +6,7 @@ import Register from './pages/Register';
 import Users from './pages/Users';
 import Dashboard from './pages/Dashboard';
 import AddCar from './pages/AddCar';
+import ChatbotWindow from './components/ChatbotWindow';
 import './App.css';
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/add-car" element={<AddCar />} />
         </Routes>
+        <ChatbotWindow />
       </div>
     </Router>
   );
