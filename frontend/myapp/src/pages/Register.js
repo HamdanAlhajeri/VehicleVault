@@ -19,7 +19,7 @@ function Register() {
     try {
       console.log('Sending registration data:', userData);
 
-      const response = await fetch('http://localhost:5000/api/register', {
+      const response = await fetch('${config.apiUrl}/api/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

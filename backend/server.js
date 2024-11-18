@@ -24,12 +24,20 @@ carsDb.exec(`
     image BLOB,
     imageType TEXT,
     userId INTEGER,
+    color TEXT,
+    isEV BOOLEAN DEFAULT 0,
+    range INTEGER,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `);
 
 // Middleware
-app.use(cors());
+// Allows access of back end functions for other machines
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type']
+}));
 app.use(express.json({ limit: '50mb' }));
 
 // OpenAI API setup
@@ -88,14 +96,44 @@ app.use('/api', authRoutes);
 // Add new car
 app.post('/api/cars', (req, res) => {
   try {
-    const { make, model, year, price, description, userId, image, imageType } = req.body;
+    const { 
+      make, 
+      model, 
+      year, 
+      price, 
+      description, 
+      userId, 
+      image, 
+      imageType,
+      color,
+      isEV,
+      range 
+    } = req.body;
+    
+    // Convert types to what SQLite expects
+    const carData = [
+      String(make),
+      String(model),
+      Number(year),
+      Number(price),
+      String(description),
+      image ? String(image) : null,
+      imageType ? String(imageType) : null,
+      Number(userId),
+      String(color),
+      isEV ? 1 : 0,  // Convert boolean to integer
+      Number(range)
+    ];
     
     const stmt = carsDb.prepare(`
-      INSERT INTO cars (make, model, year, price, description, image, imageType, userId) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO cars (
+        make, model, year, price, description, 
+        image, imageType, userId, color, isEV, range
+      ) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     
-    const result = stmt.run(make, model, year, price, description, image, imageType, userId);
+    const result = stmt.run(...carData);
     
     res.status(201).json({
       message: 'Car added successfully',

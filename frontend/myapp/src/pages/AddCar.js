@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/Navigation';
+import config from '../config';
 
 function AddCar() {
   const navigate = useNavigate();
@@ -10,6 +11,9 @@ function AddCar() {
     year: '',
     price: '',
     description: '',
+    color: '',
+    isEV: false,
+    range: ''
   });
   const [image, setImage] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -38,7 +42,7 @@ function AddCar() {
     try {
       const userData = JSON.parse(localStorage.getItem('user'));
       
-      const response = await fetch('http://localhost:5000/api/cars', {
+      const response = await fetch(`${config.apiUrl}/api/cars`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -122,6 +126,47 @@ function AddCar() {
               value={carData.price}
               onChange={handleChange}
               required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="color">Color:</label>
+            <input
+              type="text"
+              id="color"
+              name="color"
+              value={carData.color}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          <div className="form-group ev-group">
+            <label htmlFor="isEV">Electric Vehicle:</label>
+            <input
+              type="checkbox"
+              id="isEV"
+              name="isEV"
+              checked={carData.isEV}
+              onChange={(e) => {
+                setCarData(prev => ({
+                  ...prev,
+                  isEV: e.target.checked
+                }));
+              }}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="range">Range (KM):</label>
+            <input
+              type="number"
+              id="range"
+              name="range"
+              value={carData.range}
+              onChange={handleChange}
+              required
+              min="0"
             />
           </div>
 
