@@ -76,7 +76,7 @@ function Home() {
   return (
     <div>
       <Navigation />
-      <div className="page">
+      <div className="page-with-sidebar">
         <div className="filters-container">
           <div className="filter-section">
             <h3>Price Range</h3>

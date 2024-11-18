@@ -34,9 +34,10 @@ carsDb.exec(`
 // Middleware
 // Allows access of back end functions for other machines
 app.use(cors({
-  origin: '*',
+  origin: ['http://192.168.1.89:3000', 'http://localhost:3000'],
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type']
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json({ limit: '50mb' }));
 
@@ -47,6 +48,10 @@ const openai = new OpenAI({
 
 // Chatbot route
 app.post('/api/chatbot', async (req, res) => {
+  console.log('Chatbot endpoint hit');
+  console.log('Request headers:', req.headers);
+  console.log('Request body:', req.body);
+
   try {
     // Check if API key exists
     if (!process.env.OPENAI_API_KEY) {
@@ -61,9 +66,9 @@ app.post('/api/chatbot', async (req, res) => {
       apiKey: process.env.OPENAI_API_KEY,
     });
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', content: message }],
+    const response = await openai.completions.create({
+      model: 'gpt-3.5-turbo-instruct',
+      prompt: message,
       max_tokens: 150,
     });
 

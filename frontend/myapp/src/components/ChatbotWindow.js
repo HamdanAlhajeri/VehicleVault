@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import config from '../config';
 
 function ChatbotWindow() {
   const [isOpen, setIsOpen] = useState(false);
@@ -15,13 +16,21 @@ function ChatbotWindow() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('${config.apiUrl}/api/chatbot', {
+      const response = await fetch(`${config.apiUrl}/api/chatbot`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({ message: inputMessage }),
+      }).catch(error => {
+        console.error('Fetch error details:', error);
+        throw new Error(`Network error: ${error.message}`);
       });
+
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
 
       const data = await response.json();
       console.log('Server response:', data);
