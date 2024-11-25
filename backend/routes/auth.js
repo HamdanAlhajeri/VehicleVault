@@ -1,75 +1,83 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
 const router = express.Router();
-const db = require('../config/db');
+const bcrypt = require('bcrypt');
+const sqlite3 = require('better-sqlite3');
+const path = require('path');
 
+// Create/connect to users database
+const db = new sqlite3(path.join(__dirname, '../users.db'));
+
+// Create users table if it doesn't exist
+db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  )
+`);
+
+// Register route
 router.post('/register', async (req, res) => {
   try {
-    console.log('Received registration request:', req.body);
-
     const { name, email, password } = req.body;
 
-    // Validate input
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: 'All fields are required' });
-    }
-
-    // Check if user exists
-    const stmt = db.prepare('SELECT * FROM users WHERE email = ?');
-    const existingUsers = stmt.all(email);
-
-    if (existingUsers.length > 0) {
-      return res.status(400).json({ message: 'Email already registered' });
+    // Check if user already exists
+    const existingUser = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    if (existingUser) {
+      return res.status(400).json({ message: 'User already exists' });
     }
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Insert user
-    const insertStmt = db.prepare('INSERT INTO users (name, email, password) VALUES (?, ?, ?)');
-    const result = insertStmt.run(name, email, hashedPassword);
+    // Insert new user
+    const stmt = db.prepare('INSERT INTO users (name, email, password) VALUES (?, ?, ?)');
+    const result = stmt.run(name, email, hashedPassword);
 
-    console.log('User registered successfully:', result);
-    res.status(201).json({ message: 'Registration successful' });
-
+    res.status(201).json({ 
+      message: 'User registered successfully',
+      user: {
+        id: result.lastInsertRowid,
+        name,
+        email
+      }
+    });
   } catch (error) {
-    console.error('Detailed registration error:', error);
-    res.status(500).json({ message: 'Server error: ' + error.message });
+    console.error('Registration error:', error);
+    res.status(500).json({ message: 'Error registering user' });
   }
 });
 
+// Add this login route
 router.post('/login', async (req, res) => {
   try {
-    console.log('Received login request:', req.body);
-
     const { email, password } = req.body;
 
-    // Validate input
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required' });
-    }
-
     // Check if user exists
-    const stmt = db.prepare('SELECT * FROM users WHERE email = ?');
-    const user = stmt.get(email);
-
+    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
     if (!user) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
-    // Compare password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
+    // Verify password
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
-    // Simulate a user object to return
-    const userData = { id: user.id, email: user.email, name: user.name };
-    res.json({ user: userData });
-
+    // Send user data (excluding password)
+    res.json({
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email
+      }
+    });
   } catch (error) {
-    console.error('Detailed login error:', error);
-    res.status(500).json({ message: 'Server error: ' + error.message });
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'Error during login' });
   }
 });
 

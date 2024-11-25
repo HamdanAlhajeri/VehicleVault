@@ -21,12 +21,7 @@ function Navigation() {
   };
 
   return (
-    <nav className="navigation" style={{ 
-      display: 'flex', 
-      justifyContent: 'space-between', 
-      alignItems: 'center',
-      padding: '10px 20px'
-    }}>
+    <nav className="navigation">
       <div style={{ display: 'flex', gap: '20px' }}>
         <Link to="/">Home</Link>
         {!isLoggedIn ? (

@@ -49,7 +49,11 @@ function Home() {
     const matchesMake = !filters.make || car.make.toLowerCase() === filters.make.toLowerCase();
     const matchesModel = !filters.model || car.model.toLowerCase().includes(filters.model.toLowerCase());
     const matchesYear = !filters.year || car.year.toString() === filters.year;
-    const matchesEV = !filters.isEV || car.isEV === filters.isEV;
+    
+    console.log('Car isEV:', car.isEV);
+    console.log('Filter isEV:', filters.isEV);
+    const matchesEV = filters.isEV ? car.isEV : true;
+    console.log('Matches EV:', matchesEV);
 
     return matchesSearch && matchesPrice && matchesMake && matchesModel && matchesYear && matchesEV;
   });
@@ -103,12 +107,8 @@ function Home() {
                 renderTrack={({ props, children }) => (
                   <div
                     {...props}
-                    style={{
-                      ...props.style,
-                      height: '4px',
-                      width: '100%',
-                      backgroundColor: '#ddd'
-                    }}
+                    className="price-range-track"
+                    style={props.style}
                   >
                     {children}
                   </div>
@@ -116,13 +116,8 @@ function Home() {
                 renderThumb={({ props }) => (
                   <div
                     {...props}
-                    style={{
-                      ...props.style,
-                      height: '16px',
-                      width: '16px',
-                      backgroundColor: '#007bff',
-                      borderRadius: '50%'
-                    }}
+                    className="price-range-thumb"
+                    style={props.style}
                   />
                 )}
               />
@@ -166,6 +161,7 @@ function Home() {
           </div>
 
           <div className="filter-section">
+            <h3>Vehicle Type</h3>
             <label className="ev-filter">
               <input
                 type="checkbox"

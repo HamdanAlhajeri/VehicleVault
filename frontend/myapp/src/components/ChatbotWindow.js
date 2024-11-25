@@ -32,22 +32,28 @@ function ChatbotWindow() {
       console.log('Response status:', response.status);
       console.log('Response headers:', response.headers);
 
-      const data = await response.json();
-      console.log('Server response:', data);
-
       if (!response.ok) {
-        throw new Error(data.error || 'Server error occurred');
+        throw new Error(`Server error: ${response.status}`);
       }
 
-      const botMessage = { role: 'assistant', content: data.reply };
+      const data = await response.json();
+      
+      if (!data || !data.reply) {
+        throw new Error('Invalid response format from server');
+      }
+
+      const botMessage = { 
+        role: 'assistant', 
+        content: data.reply.toString()
+      };
       setMessages(prev => [...prev, botMessage]);
 
     } catch (error) {
       console.error('Chat Error:', error);
-      const errorMessage = error.message || 'Failed to communicate with chatbot';
+      const errorMessage = error.message || 'An unexpected error occurred';
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: `Error: ${errorMessage}` 
+        content: `Sorry, there was an error: ${errorMessage}. Please try again later.` 
       }]);
     } finally {
       setIsLoading(false);

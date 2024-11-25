@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/Navigation';
+import config from '../config';
 
 function Register() {
   const [userData, setUserData] = useState({
@@ -16,14 +17,16 @@ function Register() {
     e.preventDefault();
     setError('');
 
-    try {
-      console.log('Sending registration data:', userData);
+    if (userData.password !== userData.confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
 
-      const response = await fetch('${config.apiUrl}/api/register', {
+    try {
+      const response = await fetch(`${config.apiUrl}/api/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json'
         },
         body: JSON.stringify({
           name: userData.name,
@@ -33,25 +36,34 @@ function Register() {
       });
 
       console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+      
       const textResponse = await response.text();
       console.log('Raw response:', textResponse);
 
-      let data;
-      try {
-        data = JSON.parse(textResponse);
-      } catch (parseError) {
-        console.error('Failed to parse response:', parseError);
-        throw new Error('Server response was not valid JSON');
+      if (textResponse) {
+        try {
+          const data = JSON.parse(textResponse);
+          if (!response.ok) {
+            throw new Error(data.message || 'Registration failed');
+          }
+          navigate('/login');
+        } catch (parseError) {
+          console.error('Parse error:', parseError);
+          setError(`Server error: ${textResponse}`);
+          return;
+        }
+      } else {
+        throw new Error('Empty response from server');
       }
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Registration failed');
-      }
-
-      navigate('/login');
     } catch (err) {
       console.error('Registration error:', err);
-      setError(err.message);
+      console.error('Error details:', {
+        name: err.name,
+        message: err.message,
+        stack: err.stack
+      });
+      setError(err.message || 'Registration failed');
     }
   };
 
