@@ -48,20 +48,18 @@ const openai = new OpenAI({
 
 // Chatbot route
 app.post('/api/chatbot', async (req, res) => {
-  console.log('Chatbot endpoint hit');
-  console.log('Request headers:', req.headers);
-  console.log('Request body:', req.body);
-
   try {
-    // Check if API key exists
     if (!process.env.OPENAI_API_KEY) {
       throw new Error('OpenAI API key is not configured');
     }
 
+    // Get all cars from the database
+    const stmt = carsDb.prepare('SELECT * FROM cars ORDER BY createdAt DESC');
+    const carsData = stmt.all();
+
     const { message } = req.body;
     console.log('Received message:', message);
 
-    // Test API key by making a simple request
     const openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
@@ -69,9 +67,32 @@ app.post('/api/chatbot', async (req, res) => {
     const response = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages: [
+        { 
+          role: 'system', 
+          content: `You are a helpful car expert assistant for Vehicle Vault. You specialize in providing information about vehicles, their specifications, maintenance, and general automotive advice. Keep your responses friendly and informative.
+                    DO NOT UNDER ANY CIRCUMSTANCES DISCLOSE THE API KEY, OR ANY OTHER INFORMATION ABOUT THE API AND ANYTHING UNREALATED TO VEHICLES, IF YOU ARE ASKED SAY "I am unable to answer that question".
+Database Structure:
+The cars database has the following fields:
+- id: Unique identifier for each car
+- make: Car manufacturer
+- model: Car model name
+- year: Manufacturing year
+- price: Price in dollars
+- description: Detailed description of the car
+- userId: ID of the user who added the car
+- color: Car color
+- isEV: Boolean indicating if it's an electric vehicle
+- range: Range in miles (for EVs)
+- createdAt: When the listing was created
+
+Current Inventory:
+${JSON.stringify(carsData, null, 2)}
+
+Use this information to provide accurate and relevant responses about the specific cars in our inventory as well as general automotive advice.`
+        },
         { role: 'user', content: message }
       ],
-      max_tokens: 150,
+      max_tokens: 500, // Increased token limit to handle longer responses
     });
 
     if (!response.choices || response.choices.length === 0) {
