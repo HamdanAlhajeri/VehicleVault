@@ -328,3 +328,58 @@ li {
 .price-range-thumb:hover {
   background-color: #333333;
 }
+
+/* Car Details Page Styles */
+.car-details-container {
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+  padding-top: 80px; /* Account for fixed navigation */
+}
+
+.back-button {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.5rem 0;
+  margin-bottom: 2rem;
+}
+
+.back-button:hover {
+  color: #333;
+  background-color: transparent;
+}
+
+.car-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+.car-images {
+  position: relative;
+}
+
+.main-image {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.car-info {
+  padding: 1rem;
+}
+
+.car-info h1 {
+  margin: 0 0 1.5rem 0;
+  font-size: 2rem;
+  color: #333;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+}

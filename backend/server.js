@@ -184,6 +184,22 @@ app.get('/api/cars', (req, res) => {
   }
 });
 
+// Get single car by ID
+app.get('/api/cars/:id', (req, res) => {
+  try {
+    const stmt = carsDb.prepare('SELECT * FROM cars WHERE id = ?');
+    const car = stmt.get(req.params.id);
+    
+    if (!car) {
+      return res.status(404).json({ error: 'Car not found' });
+    }
+    
+    res.json(car);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get single car image
 app.get('/api/cars/:id/image', (req, res) => {
   try {

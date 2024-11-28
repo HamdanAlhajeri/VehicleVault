@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import Navigation from '../components/Navigation';
 import config from '../config';
 import { Range } from 'react-range';
+import { useNavigate } from 'react-router-dom';
 
 function Home() {
+  const navigate = useNavigate();
   const [cars, setCars] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
@@ -197,7 +199,7 @@ function Home() {
                   <h3>{car.make} {car.model}</h3>
                   <p>Year: {car.year}</p>
                   <p>Price: ${car.price}</p>
-                  <button onClick={() => window.location.href = `/car/${car.id}`}>
+                  <button onClick={() => navigate(`/car/${car.id}`)}>
                     View Details
                   </button>
                 </div>
