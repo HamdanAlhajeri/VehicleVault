@@ -4,9 +4,10 @@ services:
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      args:
+        NODE_ENV: development
     ports:
-      - "6000:6000"
+      - "3001:3001"
     environment:
       - NODE_ENV=development
     volumes:
@@ -17,7 +18,8 @@ services:
   frontend:
     build:
       context: ./frontend/myapp
-      dockerfile: Dockerfile
+      args:
+        NODE_ENV: development
     ports:
       - "3000:3000"
     environment:
@@ -27,4 +29,4 @@ services:
       - /app/node_modules
     command: npm start
     depends_on:
-      - backend 
+      - backend

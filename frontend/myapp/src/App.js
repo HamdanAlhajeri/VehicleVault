@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import AddCar from './pages/AddCar';
 import ChatbotWindow from './components/ChatbotWindow';
 import CarDetails from './pages/CarDetails';
+import Messages from './pages/Messages';
 import './App.css';
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/add-car" element={<AddCar />} />
           <Route path="/car/:id" element={<CarDetails />} />
+          <Route path="/messages" element={<Messages />} />
         </Routes>
         <ChatbotWindow />
       </div>

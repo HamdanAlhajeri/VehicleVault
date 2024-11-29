@@ -1,22 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
-const sqlite3 = require('better-sqlite3');
-const path = require('path');
-
-// Create/connect to users database
-const db = new sqlite3(path.join(__dirname, '../users.db'));
-
-// Create users table if it doesn't exist
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
+const db = require('../config/db');
 
 // Register route
 router.post('/register', async (req, res) => {

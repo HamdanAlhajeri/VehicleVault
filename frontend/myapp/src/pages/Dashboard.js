@@ -74,6 +74,7 @@ function Dashboard() {
             <h3>Quick Actions</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
               <button onClick={() => navigate('/add-car')}>Add Car</button>
+              <button onClick={() => navigate('/messages')}>Messages</button>
               <button>View Profile</button>
               <button>Settings</button>
             </div>
