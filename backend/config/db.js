@@ -35,17 +35,39 @@ db.exec(`
   )
 `);
 
-// Create notifications table
+// Create notification types table
 db.exec(`
-  CREATE TABLE IF NOT EXISTS notifications (
+  CREATE TABLE IF NOT EXISTS notification_types (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT UNIQUE NOT NULL,
+    description TEXT NOT NULL
+  )
+`);
+
+// Insert the test drive notification type if it doesn't exist
+const insertNotificationType = db.prepare(`
+  INSERT OR IGNORE INTO notification_types (type, description)
+  VALUES ('test_drive', 'Notification for test drive scheduling requests')
+`);
+
+insertNotificationType.run();
+
+// Modify the notifications table to include status
+db.exec(`
+  DROP TABLE IF EXISTS notifications;
+  CREATE TABLE notifications (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     userId INTEGER NOT NULL,
     message TEXT NOT NULL,
-    carId INTEGER NOT NULL,
+    typeId INTEGER NOT NULL,
     isRead BOOLEAN DEFAULT 0,
+    status TEXT DEFAULT 'pending',  -- Can be 'pending', 'accepted', or 'declined'
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    relatedId INTEGER,
+    requesterId INTEGER,  -- Adding this to track who made the request
     FOREIGN KEY (userId) REFERENCES users(id),
-    FOREIGN KEY (carId) REFERENCES cars(id)
+    FOREIGN KEY (typeId) REFERENCES notification_types(id),
+    FOREIGN KEY (requesterId) REFERENCES users(id)
   )
 `);
 

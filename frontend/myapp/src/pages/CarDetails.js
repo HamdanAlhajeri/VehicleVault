@@ -11,6 +11,9 @@ function CarDetails() {
   const [error, setError] = useState(null);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [messageContent, setMessageContent] = useState('');
+  const currentUser = JSON.parse(localStorage.getItem('user'));
 
   // Get today's date in YYYY-MM-DD format
   const today = new Date().toISOString().split('T')[0];
@@ -56,6 +59,35 @@ function CarDetails() {
         setLoading(false);
       });
   }, [id]);
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!messageContent.trim()) return;
+
+    try {
+      const response = await fetch(`${config.apiUrl}/api/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          senderId: currentUser.id,
+          receiverId: car.userId, // Assuming the car object includes the seller's userId
+          subject: 'Car Inquiry',
+          content: messageContent
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to send message');
+      
+      alert('Message sent successfully!');
+      setMessageContent('');
+      setShowMessageModal(false);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      alert('Failed to send message. Please try again.');
+    }
+  };
 
   if (loading) {
     return (
@@ -141,83 +173,112 @@ function CarDetails() {
               </div>
             )}
 
-            <div className="test-drive-section">
-              <h2>Schedule a Test Drive</h2>
-              <div className="scheduling-controls">
-                <input 
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  min={today}
-                  max={maxDateStr}
-                  className="date-select"
-                />
+            {currentUser && currentUser.id !== car.userId && (
+              <>
+                <div className="test-drive-section">
+                  <h2>Schedule a Test Drive</h2>
+                  <div className="scheduling-controls">
+                    <input 
+                      type="date"
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      min={today}
+                      max={maxDateStr}
+                      className="date-select"
+                    />
 
-                {selectedDate && (
-                  <select 
-                    value={selectedTime} 
-                    onChange={(e) => setSelectedTime(e.target.value)}
-                    className="time-select"
-                  >
-                    <option value="">Select a Time</option>
-                    {timeSlots.map((slot) => (
-                      <option key={slot.value} value={slot.value}>
-                        {slot.label}
-                      </option>
-                    ))}
-                  </select>
-                )}
+                    {selectedDate && (
+                      <select 
+                        value={selectedTime} 
+                        onChange={(e) => setSelectedTime(e.target.value)}
+                        className="time-select"
+                      >
+                        <option value="">Select a Time</option>
+                        {timeSlots.map((slot) => (
+                          <option key={slot.value} value={slot.value}>
+                            {slot.label}
+                          </option>
+                        ))}
+                      </select>
+                    )}
 
-                {selectedDate && selectedTime && (
+                    {selectedDate && selectedTime && (
+                      <button 
+                        className="schedule-button"
+                        onClick={() => {
+                          const selectedTimeLabel = timeSlots.find(slot => slot.value === selectedTime)?.label;
+                          const formattedDate = new Date(selectedDate)
+                            .toLocaleDateString('en-US', { 
+                              weekday: 'long', 
+                              month: 'long', 
+                              day: 'numeric' 
+                            });
+
+                          fetch(`${config.apiUrl}/api/schedule-test-drive`, {
+                            method: 'POST',
+                            headers: {
+                              'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                              carId: id,
+                              date: formattedDate,
+                              time: selectedTimeLabel,
+                              userId: currentUser.id
+                            })
+                          })
+                          .then(response => response.json())
+                          .then(data => {
+                            alert('Test drive scheduled successfully!');
+                            setSelectedDate('');
+                            setSelectedTime('');
+                          })
+                          .catch(error => {
+                            console.error('Error scheduling test drive:', error);
+                            alert('Failed to schedule test drive. Please try again.');
+                          });
+                        }}
+                      >
+                        Schedule Test Drive
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="contact-section">
+                  <h2>Interested in this vehicle?</h2>
                   <button 
-                    className="schedule-button"
-                    onClick={() => {
-                      const selectedTimeLabel = timeSlots.find(slot => slot.value === selectedTime)?.label;
-                      const formattedDate = new Date(selectedDate)
-                        .toLocaleDateString('en-US', { 
-                          weekday: 'long', 
-                          month: 'long', 
-                          day: 'numeric' 
-                        });
-
-                      fetch(`${config.apiUrl}/api/schedule-test-drive`, {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                          carId: id,
-                          date: formattedDate,
-                          time: selectedTimeLabel
-                        })
-                      })
-                      .then(response => response.json())
-                      .then(data => {
-                        alert('Test drive scheduled successfully!');
-                        setSelectedDate('');
-                        setSelectedTime('');
-                      })
-                      .catch(error => {
-                        console.error('Error scheduling test drive:', error);
-                        alert('Failed to schedule test drive. Please try again.');
-                      });
-                    }}
+                    className="contact-button"
+                    onClick={() => setShowMessageModal(true)}
                   >
-                    Schedule Test Drive
+                    Contact Dealer
                   </button>
-                )}
-              </div>
-            </div>
-
-            <div className="contact-section">
-              <h2>Interested in this vehicle?</h2>
-              <button className="contact-button">
-                Contact Dealer
-              </button>
-            </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
+
+      {showMessageModal && (
+        <div className="modal-overlay">
+          <form onSubmit={handleSendMessage} className="modal-content">
+            <h2>Contact Dealer</h2>
+            <div className="message-input">
+              <label>Message:</label>
+              <textarea
+                value={messageContent}
+                onChange={(e) => setMessageContent(e.target.value)}
+                placeholder="Type your message about this vehicle..."
+                required
+              />
+            </div>
+            <div className="button-container" style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
+              <button type="submit">Send</button>
+              <button type="button" onClick={() => setShowMessageModal(false)}>Cancel</button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

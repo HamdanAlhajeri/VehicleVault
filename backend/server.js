@@ -165,7 +165,12 @@ app.get('/api/cars', (req, res) => {
 // Get single car by ID
 app.get('/api/cars/:id', (req, res) => {
   try {
-    const stmt = db.prepare('SELECT * FROM cars WHERE id = ?');
+    const stmt = db.prepare(`
+      SELECT cars.*, users.name as sellerName 
+      FROM cars 
+      LEFT JOIN users ON cars.userId = users.id 
+      WHERE cars.id = ?
+    `);
     const car = stmt.get(req.params.id);
     
     if (!car) {
@@ -195,26 +200,32 @@ app.get('/api/cars/:id/image', (req, res) => {
   }
 });
 
-// Add test drive scheduling endpoint
+// Update the test drive scheduling endpoint to include requesterId
 app.post('/api/schedule-test-drive', (req, res) => {
   try {
-    const { carId, date, time } = req.body;
+    const { carId, date, time, userId } = req.body;
     
-    // Get car details and owner
     const car = db.prepare('SELECT userId, make, model, year FROM cars WHERE id = ?').get(carId);
     
     if (!car) {
       return res.status(404).json({ error: 'Car not found' });
     }
 
-    // Create notification message
-    const message = `New test drive request for your ${car.year} ${car.make} ${car.model} on ${date} at ${time}`;
+    const requester = db.prepare('SELECT name FROM users WHERE id = ?').get(userId);
     
-    // Insert notification
+    if (!requester) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const notificationType = db.prepare('SELECT id FROM notification_types WHERE type = ?').get('test_drive');
+
+    const message = `${requester.name} requested a test drive for your ${car.year} ${car.make} ${car.model} on ${date} at ${time}`;
+    
+    // Updated insert to include requesterId and status
     const result = db.prepare(`
-      INSERT INTO notifications (userId, message, carId)
-      VALUES (?, ?, ?)
-    `).run(car.userId, message, carId);
+      INSERT INTO notifications (userId, message, typeId, relatedId, requesterId, status)
+      VALUES (?, ?, ?, ?, ?, 'pending')
+    `).run(car.userId, message, notificationType.id, carId, userId);
     
     res.status(201).json({
       message: 'Test drive scheduled successfully',
@@ -227,12 +238,147 @@ app.post('/api/schedule-test-drive', (req, res) => {
   }
 });
 
+// Update the get notifications endpoint to include more details
+app.get('/api/notifications/:userId', (req, res) => {
+  try {
+    const stmt = db.prepare(`
+      SELECT 
+        n.*,
+        nt.type as notificationType,
+        u.name as requesterName
+      FROM notifications n
+      JOIN notification_types nt ON n.typeId = nt.id
+      LEFT JOIN users u ON n.requesterId = u.id
+      WHERE n.userId = ? 
+      ORDER BY n.createdAt DESC
+    `);
+    const notifications = stmt.all(req.params.userId);
+    res.json(notifications);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add new endpoint to handle accept/decline actions
+app.put('/api/notifications/:id/respond', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, responderId } = req.body; // status should be 'accepted' or 'declined'
+    
+    if (!['accepted', 'declined'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    // Get the notification
+    const notification = db.prepare(`
+      SELECT n.*, nt.type as notificationType 
+      FROM notifications n
+      JOIN notification_types nt ON n.typeId = nt.id
+      WHERE n.id = ?
+    `).get(id);
+
+    if (!notification) {
+      return res.status(404).json({ error: 'Notification not found' });
+    }
+
+    // Verify the responder is the notification recipient
+    if (notification.userId !== responderId) {
+      return res.status(403).json({ error: 'Unauthorized to respond to this notification' });
+    }
+
+    // Update notification status
+    db.prepare(`
+      UPDATE notifications 
+      SET status = ?, isRead = 1 
+      WHERE id = ?
+    `).run(status, id);
+
+    // Create a response notification for the requester
+    const requester = db.prepare('SELECT name FROM users WHERE id = ?').get(notification.requesterId);
+    const responder = db.prepare('SELECT name FROM users WHERE id = ?').get(responderId);
+
+    const responseMessage = `${responder.name} has ${status} your test drive request.`;
+    
+    const notificationType = db.prepare('SELECT id FROM notification_types WHERE type = ?').get('test_drive');
+
+    // Create notification for the original requester
+    db.prepare(`
+      INSERT INTO notifications (userId, message, typeId, relatedId, status)
+      VALUES (?, ?, ?, ?, 'read')
+    `).run(notification.requesterId, responseMessage, notificationType.id, notification.relatedId);
+
+    res.json({ 
+      message: 'Response recorded successfully',
+      status: status
+    });
+
+  } catch (error) {
+    console.error('Error responding to notification:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Add endpoint to get user's notifications
 app.get('/api/notifications/:userId', (req, res) => {
   try {
-    const stmt = db.prepare('SELECT * FROM notifications WHERE userId = ? ORDER BY createdAt DESC');
+    const stmt = db.prepare(`
+      SELECT * FROM notifications 
+      WHERE userId = ? 
+      ORDER BY createdAt DESC
+    `);
     const notifications = stmt.all(req.params.userId);
     res.json(notifications);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Mark notification as read
+app.put('/api/notifications/:id/read', (req, res) => {
+  try {
+    const stmt = db.prepare(`
+      UPDATE notifications 
+      SET isRead = 1 
+      WHERE id = ?
+    `);
+    stmt.run(req.params.id);
+    res.json({ message: 'Notification marked as read' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create notification for new message
+app.post('/api/messages', async (req, res) => {
+  try {
+    const { senderId, receiverId, subject, content } = req.body;
+    
+    // First, insert the message
+    const messageStmt = db.prepare(`
+      INSERT INTO messages (senderId, receiverId, subject, content)
+      VALUES (?, ?, ?, ?)
+    `);
+    const messageResult = messageStmt.run(senderId, receiverId, subject, content);
+
+    // Then, create a notification for the receiver
+    const senderStmt = db.prepare('SELECT name FROM users WHERE id = ?');
+    const sender = senderStmt.get(senderId);
+
+    const notificationStmt = db.prepare(`
+      INSERT INTO notifications (userId, message, type, relatedId)
+      VALUES (?, ?, ?, ?)
+    `);
+    notificationStmt.run(
+      receiverId,
+      `New message from ${sender.name}: ${subject}`,
+      'message',
+      messageResult.lastInsertRowid
+    );
+
+    res.status(201).json({ 
+      message: 'Message sent successfully',
+      messageId: messageResult.lastInsertRowid 
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -323,6 +469,48 @@ app.put('/api/messages/:messageId/read', (req, res) => {
     stmt.run(req.params.messageId);
     res.json({ message: 'Message marked as read' });
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add this temporary test endpoint to create a test notification
+app.post('/api/test-notification', (req, res) => {
+  try {
+    const { userId } = req.body;
+    
+    const stmt = db.prepare(`
+      INSERT INTO notifications (userId, message, type, relatedId)
+      VALUES (?, ?, ?, ?)
+    `);
+    
+    const result = stmt.run(
+      userId,
+      'This is a test notification',
+      'test',
+      1
+    );
+    
+    res.status(201).json({
+      message: 'Test notification created',
+      notificationId: result.lastInsertRowid
+    });
+  } catch (error) {
+    console.error('Error creating test notification:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add this endpoint to check notifications for a user
+app.get('/api/check-notifications/:userId', (req, res) => {
+  try {
+    const stmt = db.prepare('SELECT * FROM notifications WHERE userId = ?');
+    const notifications = stmt.all(req.params.userId);
+    res.json({
+      count: notifications.length,
+      notifications: notifications
+    });
+  } catch (error) {
+    console.error('Error checking notifications:', error);
     res.status(500).json({ error: error.message });
   }
 });
