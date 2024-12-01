@@ -70,27 +70,34 @@ function CarDetails() {
     if (!messageContent.trim()) return;
 
     try {
+      // Get the auth token from localStorage
+      const token = localStorage.getItem('token');
+
       const response = await fetch(`${config.apiUrl}/api/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // Add authentication header
         },
         body: JSON.stringify({
           senderId: currentUser.id,
-          receiverId: car.userId, // Assuming the car object includes the seller's userId
+          receiverId: car.userId,
           subject: 'Car Inquiry',
           content: messageContent
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to send message');
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to send message');
+      }
       
       alert('Message sent successfully!');
       setMessageContent('');
       setShowMessageModal(false);
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Failed to send message. Please try again.');
+      alert(error.message || 'Failed to send message. Please try again.');
     }
   };
 
@@ -282,15 +289,6 @@ function CarDetails() {
                 </div>
               </div>
             )}
-
-            <div className="trade-in-section">
-              <button 
-                className="trade-in-button"
-                onClick={() => setShowTradeInModal(true)}
-              >
-                Estimate Trade-In Value
-              </button>
-            </div>
           </div>
         </div>
       </div>

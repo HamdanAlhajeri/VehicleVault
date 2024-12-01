@@ -17,10 +17,9 @@ db.exec(`
   )
 `);
 
-// Drop and recreate cars table
+// Create cars table
 db.exec(`
-  DROP TABLE IF EXISTS cars;
-  CREATE TABLE cars (
+  CREATE TABLE IF NOT EXISTS cars (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     make TEXT NOT NULL,
     model TEXT NOT NULL,
@@ -55,6 +54,14 @@ const insertNotificationType = db.prepare(`
 `);
 
 insertNotificationType.run();
+
+// Add this to your notification types insertion
+const insertMessageNotificationType = db.prepare(`
+  INSERT OR IGNORE INTO notification_types (type, description)
+  VALUES ('message', 'Notification for new messages')
+`);
+
+insertMessageNotificationType.run();
 
 // Modify the notifications table to include status
 db.exec(`

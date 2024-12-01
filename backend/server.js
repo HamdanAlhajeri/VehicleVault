@@ -4,6 +4,7 @@ const OpenAI = require('openai');
 const path = require('path');
 const authRoutes = require('./routes/auth');
 const db = require('./config/db');
+const nodemailer = require('nodemailer');
 
 require('dotenv').config();
 
@@ -45,6 +46,15 @@ function getRandomIncentives(count = 3) {
   const shuffled = [...EV_INCENTIVES].sort(() => 0.5 - Math.random());
   return shuffled.slice(0, count);
 }
+
+// Add email configuration near the top of the file
+const transporter = nodemailer.createTransport({
+  service: 'gmail',  // or your preferred email service
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD
+  }
+});
 
 // Chatbot route
 app.post('/api/chatbot', async (req, res) => {
@@ -228,35 +238,67 @@ app.get('/api/cars/:id/image', (req, res) => {
   }
 });
 
-// Update the test drive scheduling endpoint to include requesterId
+// Update the test drive scheduling endpoint to ensure proper notification creation
 app.post('/api/schedule-test-drive', (req, res) => {
   try {
     const { carId, date, time, userId } = req.body;
     
-    const car = db.prepare('SELECT userId, make, model, year FROM cars WHERE id = ?').get(carId);
+    // Get car and seller details
+    const car = db.prepare(`
+      SELECT c.*, u.id as sellerId, u.name as sellerName 
+      FROM cars c
+      JOIN users u ON c.userId = u.id
+      WHERE c.id = ?
+    `).get(carId);
     
     if (!car) {
       return res.status(404).json({ error: 'Car not found' });
     }
 
+    // Get requester details
     const requester = db.prepare('SELECT name FROM users WHERE id = ?').get(userId);
-    
     if (!requester) {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Get notification type ID
     const notificationType = db.prepare('SELECT id FROM notification_types WHERE type = ?').get('test_drive');
+    if (!notificationType) {
+      return res.status(500).json({ error: 'Notification type not found' });
+    }
 
     const message = `${requester.name} requested a test drive for your ${car.year} ${car.make} ${car.model} on ${date} at ${time}`;
     
-    // Updated insert to include requesterId and status
+    // Create notification with all required fields
     const result = db.prepare(`
-      INSERT INTO notifications (userId, message, typeId, relatedId, requesterId, status)
-      VALUES (?, ?, ?, ?, ?, 'pending')
-    `).run(car.userId, message, notificationType.id, carId, userId);
+      INSERT INTO notifications (
+        userId, 
+        message, 
+        typeId, 
+        relatedId, 
+        requesterId, 
+        status,
+        isRead
+      )
+      VALUES (?, ?, ?, ?, ?, 'pending', 0)
+    `).run(
+      car.sellerId,
+      message,
+      notificationType.id,
+      carId,
+      userId
+    );
     
+    // Add debug logging
+    console.log('Created notification:', {
+      notificationId: result.lastInsertRowid,
+      message,
+      sellerId: car.sellerId,
+      requesterId: userId
+    });
+
     res.status(201).json({
-      message: 'Test drive scheduled successfully',
+      message: 'Test drive request sent successfully',
       notificationId: result.lastInsertRowid
     });
     
@@ -273,16 +315,19 @@ app.get('/api/notifications/:userId', (req, res) => {
       SELECT 
         n.*,
         nt.type as notificationType,
-        u.name as requesterName
+        u.name as requesterName,
+        c.make, c.model, c.year
       FROM notifications n
       JOIN notification_types nt ON n.typeId = nt.id
       LEFT JOIN users u ON n.requesterId = u.id
+      LEFT JOIN cars c ON n.relatedId = c.id
       WHERE n.userId = ? 
       ORDER BY n.createdAt DESC
     `);
     const notifications = stmt.all(req.params.userId);
     res.json(notifications);
   } catch (error) {
+    console.error('Error fetching notifications:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -291,27 +336,31 @@ app.get('/api/notifications/:userId', (req, res) => {
 app.put('/api/notifications/:id/respond', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, responderId } = req.body; // status should be 'accepted' or 'declined'
-    
+    const { status, responderId } = req.body;
+
     if (!['accepted', 'declined'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
 
-    // Get the notification
+    // Get the notification with all related information
     const notification = db.prepare(`
-      SELECT n.*, nt.type as notificationType 
+      SELECT 
+        n.*, 
+        nt.type as notificationType,
+        requester.email as requesterEmail,
+        requester.name as requesterName,
+        responder.name as responderName,
+        c.make, c.model, c.year
       FROM notifications n
       JOIN notification_types nt ON n.typeId = nt.id
+      JOIN users requester ON n.requesterId = requester.id
+      JOIN users responder ON n.userId = responder.id
+      LEFT JOIN cars c ON n.relatedId = c.id
       WHERE n.id = ?
     `).get(id);
 
     if (!notification) {
       return res.status(404).json({ error: 'Notification not found' });
-    }
-
-    // Verify the responder is the notification recipient
-    if (notification.userId !== responderId) {
-      return res.status(403).json({ error: 'Unauthorized to respond to this notification' });
     }
 
     // Update notification status
@@ -321,15 +370,29 @@ app.put('/api/notifications/:id/respond', async (req, res) => {
       WHERE id = ?
     `).run(status, id);
 
-    // Create a response notification for the requester
-    const requester = db.prepare('SELECT name FROM users WHERE id = ?').get(notification.requesterId);
-    const responder = db.prepare('SELECT name FROM users WHERE id = ?').get(responderId);
+    // Send email if test drive request was accepted
+    if (status === 'accepted' && notification.notificationType === 'test_drive') {
+      const emailContent = {
+        from: process.env.EMAIL_USER,
+        to: notification.requesterEmail,
+        subject: `Test Drive Request ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+        html: `
+          <h2>Your Test Drive Request has been Accepted!</h2>
+          <p>Hello ${notification.requesterName},</p>
+          <p>${notification.responderName} has accepted your test drive request for the ${notification.year} ${notification.make} ${notification.model}.</p>
+          <p>Please check your notifications in the app for more details about the scheduled time.</p>
+          <p>Best regards,<br>Vehicle Vault Team</p>
+        `
+      };
 
-    const responseMessage = `${responder.name} has ${status} your test drive request.`;
+      await transporter.sendMail(emailContent);
+    }
+
+    // Create response notification for requester (existing code)
+    const responseMessage = `${notification.responderName} has ${status} your test drive request.`;
     
     const notificationType = db.prepare('SELECT id FROM notification_types WHERE type = ?').get('test_drive');
 
-    // Create notification for the original requester
     db.prepare(`
       INSERT INTO notifications (userId, message, typeId, relatedId, status)
       VALUES (?, ?, ?, ?, 'read')
@@ -389,19 +452,24 @@ app.post('/api/messages', async (req, res) => {
     `);
     const messageResult = messageStmt.run(senderId, receiverId, subject, content);
 
-    // Then, create a notification for the receiver
+    // Get the sender's name for the notification
     const senderStmt = db.prepare('SELECT name FROM users WHERE id = ?');
     const sender = senderStmt.get(senderId);
 
+    // Get the notification type ID for messages
+    const notificationType = db.prepare('SELECT id FROM notification_types WHERE type = ?').get('test_drive');
+
+    // Create notification for the receiver
     const notificationStmt = db.prepare(`
-      INSERT INTO notifications (userId, message, type, relatedId)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO notifications (userId, message, typeId, relatedId, requesterId, status)
+      VALUES (?, ?, ?, ?, ?, 'pending')
     `);
     notificationStmt.run(
       receiverId,
       `New message from ${sender.name}: ${subject}`,
-      'message',
-      messageResult.lastInsertRowid
+      notificationType.id,
+      messageResult.lastInsertRowid,
+      senderId
     );
 
     res.status(201).json({ 
@@ -409,30 +477,13 @@ app.post('/api/messages', async (req, res) => {
       messageId: messageResult.lastInsertRowid 
     });
   } catch (error) {
+    console.error('Error sending message:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 app.get('/', (req, res) => {
   res.json({ message: 'Vehicle Vault API Server' });
-});
-
-// Add messages table creation to db.js first
-app.post('/api/messages', async (req, res) => {
-  try {
-    const { senderId, receiverId, subject, content } = req.body;
-    const stmt = db.prepare(`
-      INSERT INTO messages (senderId, receiverId, subject, content)
-      VALUES (?, ?, ?, ?)
-    `);
-    const result = stmt.run(senderId, receiverId, subject, content);
-    res.status(201).json({ 
-      message: 'Message sent successfully',
-      messageId: result.lastInsertRowid 
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
 });
 
 app.get('/api/messages/:userId', (req, res) => {
