@@ -24,6 +24,28 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Add this near the top of the file with other constants
+const EV_INCENTIVES = [
+  "2 Years Extra Insurance Coverage",
+  "Free Home Charging Station Installation",
+  "1 Year Free Public Charging Access",
+  "Extended Battery Warranty (5 Years)",
+  "Zero Registration Fees",
+  "Priority Service Appointments",
+  "Free Annual Maintenance (3 Years)",
+  "Complimentary Winter Tire Package",
+  "Government Tax Credit Assistance",
+  "Free Software Updates for Life",
+  "24/7 Roadside Assistance (3 Years)",
+  "Exclusive EV Owner Events Access"
+];
+
+// Helper function to get random incentives
+function getRandomIncentives(count = 3) {
+  const shuffled = [...EV_INCENTIVES].sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, count);
+}
+
 // Chatbot route
 app.post('/api/chatbot', async (req, res) => {
   try {
@@ -151,7 +173,12 @@ app.post('/api/cars', (req, res) => {
 app.get('/api/cars', (req, res) => {
   try {
     const stmt = db.prepare('SELECT * FROM cars ORDER BY createdAt DESC');
-    const cars = stmt.all();
+    const cars = stmt.all().map(car => {
+      if (car.isEV) {
+        car.evIncentives = getRandomIncentives();
+      }
+      return car;
+    });
     res.json(cars);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -171,6 +198,11 @@ app.get('/api/cars/:id', (req, res) => {
     
     if (!car) {
       return res.status(404).json({ error: 'Car not found' });
+    }
+    
+    // Add incentives if the car is an EV
+    if (car.isEV) {
+      car.evIncentives = getRandomIncentives();
     }
     
     res.json(car);
@@ -711,6 +743,96 @@ app.delete('/api/users/:id', (req, res) => {
   } catch (error) {
     console.error('Error deleting user:', error);
     res.status(500).json({ message: 'Error deleting user', error: error.message });
+  }
+});
+
+// Add new trade-in endpoint
+app.post('/api/trade-in-estimate', async (req, res) => {
+  try {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error('OpenAI API key is not configured');
+    }
+
+    const { message, targetCarPrice, previousMessages } = req.body;
+
+    // Add debug logging
+    console.log('Received trade-in request:', {
+      message,
+      targetCarPrice,
+      previousMessagesCount: previousMessages?.length
+    });
+
+    // Convert previous messages to OpenAI format
+    const messageHistory = previousMessages.map(msg => ({
+      role: msg.role,
+      content: msg.content
+    }));
+
+    // If this is the first message, add the initial prompt
+    if (messageHistory.length === 0) {
+      messageHistory.push({
+        role: 'assistant',
+        content: "I'll help you estimate your trade-in value. Please tell me the make, model, and year of your current vehicle."
+      });
+    }
+
+    // Add the user's new message
+    messageHistory.push({ role: 'user', content: message });
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: 'gpt-3.5-turbo',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a car trade-in value estimator. Ask questions about the user's current vehicle to determine its value. 
+            Consider factors like: make, model, year, mileage, condition, accident history, and maintenance.
+            After gathering sufficient information, provide an estimated trade-in value range.
+            The customer is interested in a vehicle priced at $${targetCarPrice}.
+            Be conservative with estimates and explain your reasoning. DONT GIVE TOO MUCH DETAILS JUST THE ESTIMATED PRICE AND A BREIF REASONING`
+          },
+          ...messageHistory
+        ],
+        max_tokens: 500,
+      });
+
+      let reply = response.choices[0].message.content;
+      let estimatedValue = null;
+
+      // Extract estimate if present
+      const estimateMatch = reply.match(/\[ESTIMATE\](.*?)\[\/ESTIMATE\]/);
+      if (estimateMatch) {
+        try {
+          const estimateData = JSON.parse(estimateMatch[1]);
+          estimatedValue = estimateData.value;
+          // Remove the JSON from the reply
+          reply = reply.replace(/\[ESTIMATE\].*?\[\/ESTIMATE\]/, '');
+        } catch (e) {
+          console.error('Error parsing estimate:', e);
+        }
+      }
+
+      // Add debug logging
+      console.log('OpenAI Response:', {
+        reply: reply.trim(),
+        estimatedValue
+      });
+
+      res.json({ 
+        reply: reply.trim(),
+        estimatedValue 
+      });
+
+    } catch (error) {
+      console.error('OpenAI API Error:', error);
+      throw new Error(`OpenAI API Error: ${error.message}`);
+    }
+
+  } catch (error) {
+    console.error('Trade-in Error:', error);
+    res.status(500).json({ 
+      error: error.message || 'Failed to process trade-in request'
+    });
   }
 });
 
