@@ -22,12 +22,20 @@ function Home() {
 
   useEffect(() => {
     fetch(`${config.apiUrl}/api/cars`)
-      .then(response => response.json())
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      })
       .then(data => {
         console.log('Fetched cars:', data);
-        setCars(data);
+        setCars(Array.isArray(data) ? data : []);
       })
-      .catch(error => console.error('Error:', error));
+      .catch(error => {
+        console.error('Error:', error);
+        setCars([]);
+      });
   }, []);
 
   const formatPrice = (price) => {
@@ -38,7 +46,7 @@ function Home() {
     }).format(price);
   };
 
-  const filteredCars = cars.filter(car => {
+  const filteredCars = Array.isArray(cars) ? cars.filter(car => {
     const matchesSearch = 
       car.make.toLowerCase().includes(searchTerm.toLowerCase()) ||
       car.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -51,14 +59,10 @@ function Home() {
     const matchesMake = !filters.make || car.make.toLowerCase() === filters.make.toLowerCase();
     const matchesModel = !filters.model || car.model.toLowerCase().includes(filters.model.toLowerCase());
     const matchesYear = !filters.year || car.year.toString() === filters.year;
-    
-    console.log('Car isEV:', car.isEV);
-    console.log('Filter isEV:', filters.isEV);
     const matchesEV = filters.isEV ? car.isEV : true;
-    console.log('Matches EV:', matchesEV);
 
     return matchesSearch && matchesPrice && matchesMake && matchesModel && matchesYear && matchesEV;
-  });
+  }) : [];
 
   const handleFilterChange = (e) => {
     const { name, value, type, checked } = e.target;

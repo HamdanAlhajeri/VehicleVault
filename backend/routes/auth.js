@@ -17,8 +17,8 @@ router.post('/register', async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Insert new user
-    const stmt = db.prepare('INSERT INTO users (name, email, password) VALUES (?, ?, ?)');
+    // Insert new user with isAdmin defaulting to 0
+    const stmt = db.prepare('INSERT INTO users (name, email, password, isAdmin) VALUES (?, ?, ?, 0)');
     const result = stmt.run(name, email, hashedPassword);
 
     res.status(201).json({ 
@@ -26,7 +26,8 @@ router.post('/register', async (req, res) => {
       user: {
         id: result.lastInsertRowid,
         name,
-        email
+        email,
+        isAdmin: 0
       }
     });
   } catch (error) {
@@ -52,17 +53,34 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
+    // Add console.log to debug
+    console.log('User from database:', user);
+
     // Send user data (excluding password)
     res.json({
       user: {
         id: user.id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        isAdmin: user.isAdmin
       }
     });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: 'Error during login' });
+  }
+});
+
+// Temporary route to set admin status (remove in production)
+router.post('/set-admin', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const stmt = db.prepare('UPDATE users SET isAdmin = 1 WHERE email = ?');
+    stmt.run(email);
+    res.json({ message: 'Admin status updated' });
+  } catch (error) {
+    console.error('Error updating admin status:', error);
+    res.status(500).json({ message: 'Error updating admin status' });
   }
 });
 

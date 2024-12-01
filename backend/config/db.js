@@ -11,13 +11,16 @@ db.exec(`
     name TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    isAdmin INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    cars_sold INTEGER DEFAULT 0
   )
 `);
 
-// Create cars table
+// Drop and recreate cars table
 db.exec(`
-  CREATE TABLE IF NOT EXISTS cars (
+  DROP TABLE IF EXISTS cars;
+  CREATE TABLE cars (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     make TEXT NOT NULL,
     model TEXT NOT NULL,
@@ -30,6 +33,7 @@ db.exec(`
     color TEXT,
     isEV BOOLEAN DEFAULT 0,
     range INTEGER,
+    isSold INTEGER DEFAULT 0,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (userId) REFERENCES users(id)
   )
@@ -85,5 +89,38 @@ db.exec(`
     FOREIGN KEY (receiverId) REFERENCES users(id)
   )
 `);
+
+// Add this after your table creation to handle existing databases
+try {
+  db.exec(`
+    ALTER TABLE users 
+    ADD COLUMN isAdmin INTEGER DEFAULT 0;
+  `);
+} catch (error) {
+  // Column might already exist, which is fine
+  console.log('isAdmin column might already exist');
+}
+
+// Add isSold column to cars table if it doesn't exist
+try {
+  db.exec(`
+    ALTER TABLE cars 
+    ADD COLUMN isSold INTEGER DEFAULT 0;
+  `);
+} catch (error) {
+  // Column might already exist, which is fine
+  console.log('isSold column might already exist');
+}
+
+// Add cars_sold column to users table if it doesn't exist
+try {
+  db.exec(`
+    ALTER TABLE users 
+    ADD COLUMN cars_sold INTEGER DEFAULT 0;
+  `);
+} catch (error) {
+  // Column might already exist, which is fine
+  console.log('cars_sold column might already exist');
+}
 
 module.exports = db; 

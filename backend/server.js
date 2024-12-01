@@ -325,7 +325,8 @@ app.get('/api/notifications/:userId', (req, res) => {
     const notifications = stmt.all(req.params.userId);
     res.json(notifications);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching notifications:', error);
+    res.json([]);
   }
 });
 
@@ -445,8 +446,10 @@ app.get('/api/messages/:userId', (req, res) => {
 // Get all users
 app.get('/api/users', (req, res) => {
   try {
-    const stmt = db.prepare('SELECT id, name, email FROM users');
-    const users = stmt.all();
+    const users = db.prepare(`
+      SELECT id, name, email, isAdmin 
+      FROM users
+    `).all();
     res.json(users);
   } catch (error) {
     console.error('Error fetching users:', error);
@@ -508,6 +511,206 @@ app.get('/api/check-notifications/:userId', (req, res) => {
   } catch (error) {
     console.error('Error checking notifications:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/users/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isAdmin } = req.body;
+    
+    console.log('Updating user:', id, 'isAdmin:', isAdmin); // Debug log
+
+    // First check if user exists
+    const userExists = db.prepare('SELECT id FROM users WHERE id = ?').get(id);
+    if (!userExists) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Update user's admin status
+    const updateStmt = db.prepare(`
+      UPDATE users 
+      SET isAdmin = ? 
+      WHERE id = ?
+    `);
+    
+    const result = updateStmt.run(isAdmin ? 1 : 0, id);
+
+    if (result.changes > 0) {
+      // Fetch and return the updated user
+      const updatedUser = db.prepare(`
+        SELECT id, name, email, isAdmin 
+        FROM users 
+        WHERE id = ?
+      `).get(id);
+      
+      console.log('Updated user:', updatedUser); // Debug log
+      res.json(updatedUser);
+    } else {
+      res.status(500).json({ message: 'Failed to update user' });
+    }
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ 
+      message: 'Error updating user', 
+      error: error.message 
+    });
+  }
+});
+
+app.get('/api/cars/user/:userId', (req, res) => {
+  try {
+    const stmt = db.prepare('SELECT * FROM cars WHERE userId = ? ORDER BY createdAt DESC');
+    const cars = stmt.all(req.params.userId);
+    res.json(cars);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete car route
+app.delete('/api/cars/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // First, check if the car exists
+    const car = db.prepare('SELECT * FROM cars WHERE id = ?').get(id);
+    if (!car) {
+      return res.status(404).json({ message: 'Car not found' });
+    }
+
+    // Delete the car from the database
+    const stmt = db.prepare('DELETE FROM cars WHERE id = ?');
+    const result = stmt.run(id);
+
+    if (result.changes > 0) {
+      res.json({ message: 'Car deleted successfully' });
+    } else {
+      res.status(500).json({ message: 'Failed to delete car' });
+    }
+  } catch (error) {
+    console.error('Error deleting car:', error);
+    res.status(500).json({ message: 'Error deleting car', error: error.message });
+  }
+});
+
+// Update car route
+app.put('/api/cars/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+    
+    // Check if car exists
+    const car = db.prepare('SELECT * FROM cars WHERE id = ?').get(id);
+    if (!car) {
+      return res.status(404).json({ message: 'Car not found' });
+    }
+
+    // Update car details
+    const stmt = db.prepare(`
+      UPDATE cars 
+      SET make = ?, model = ?, year = ?, price = ?, 
+          color = ?, description = ?, isEV = ?, range = ?
+      WHERE id = ?
+    `);
+
+    stmt.run(
+      updates.make,
+      updates.model,
+      updates.year,
+      updates.price,
+      updates.color,
+      updates.description,
+      updates.isEV ? 1 : 0,
+      updates.range,
+      id
+    );
+
+    // Fetch and return updated car
+    const updatedCar = db.prepare('SELECT * FROM cars WHERE id = ?').get(id);
+    res.json(updatedCar);
+  } catch (error) {
+    console.error('Error updating car:', error);
+    res.status(500).json({ message: 'Error updating car', error: error.message });
+  }
+});
+
+// Update the get sold cars count endpoint
+app.get('/api/users/:userId/sold-cars-count', (req, res) => {
+  try {
+    const stmt = db.prepare('SELECT COUNT(*) as count FROM cars WHERE userId = ? AND isSold = 1');
+    const result = stmt.get(req.params.userId);
+    res.json({ count: result.count });
+  } catch (error) {
+    console.error('Error fetching sold cars count:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update the cars/:id/sold endpoint to increment cars_sold counter
+app.put('/api/cars/:id/sold', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId, isSold } = req.body;
+    
+    // Start a transaction since we're updating multiple tables
+    db.prepare('BEGIN TRANSACTION').run();
+
+    // Update the car's sold status
+    const updateCarStmt = db.prepare('UPDATE cars SET isSold = ? WHERE id = ? AND userId = ?');
+    const carResult = updateCarStmt.run(isSold ? 1 : 0, id, userId);
+
+    if (carResult.changes === 0) {
+      db.prepare('ROLLBACK').run();
+      throw new Error('Car not found or unauthorized');
+    }
+
+    // Update the user's cars_sold count
+    const updateUserStmt = db.prepare('UPDATE users SET cars_sold = cars_sold + 1 WHERE id = ?');
+    const userResult = updateUserStmt.run(userId);
+
+    if (userResult.changes === 0) {
+      db.prepare('ROLLBACK').run();
+      throw new Error('User not found');
+    }
+
+    // Commit the transaction
+    db.prepare('COMMIT').run();
+
+    res.json({ message: 'Car marked as sold successfully' });
+  } catch (error) {
+    // Rollback on error
+    db.prepare('ROLLBACK').run();
+    console.error('Error marking car as sold:', error);
+    res.status(500).json({ message: 'Error updating car status', error: error.message });
+  }
+});
+
+// Delete user
+app.delete('/api/users/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // First, delete all cars associated with the user
+    const deleteCarStmt = db.prepare('DELETE FROM cars WHERE userId = ?');
+    deleteCarStmt.run(id);
+    
+    // Then, delete all messages associated with the user
+    const deleteMessagesStmt = db.prepare('DELETE FROM messages WHERE senderId = ? OR receiverId = ?');
+    deleteMessagesStmt.run(id, id);
+    
+    // Finally, delete the user
+    const deleteUserStmt = db.prepare('DELETE FROM users WHERE id = ?');
+    const result = deleteUserStmt.run(id);
+
+    if (result.changes > 0) {
+      res.json({ message: 'User deleted successfully' });
+    } else {
+      res.status(404).json({ message: 'User not found' });
+    }
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ message: 'Error deleting user', error: error.message });
   }
 });
 

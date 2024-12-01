@@ -6,6 +6,7 @@ import config from '../config';
 function Dashboard() {
   const [user, setUser] = useState(null);
   const [notifications, setNotifications] = useState([]);
+  const [soldCarsCount, setSoldCarsCount] = useState(0);
   const navigate = useNavigate();
 
   const fetchNotifications = () => {
@@ -14,8 +15,25 @@ function Dashboard() {
     
     fetch(`${config.apiUrl}/api/notifications/${currentUser.id}`)
       .then(response => response.json())
-      .then(data => setNotifications(data))
-      .catch(error => console.error('Error fetching notifications:', error));
+      .then(data => {
+        setNotifications(Array.isArray(data) ? data : []);
+      })
+      .catch(error => {
+        console.error('Error fetching notifications:', error);
+        setNotifications([]);
+      });
+  };
+
+  const fetchSoldCarsCount = async (userId) => {
+    try {
+      const response = await fetch(`${config.apiUrl}/api/users/${userId}/sold-cars-count`);
+      if (response.ok) {
+        const data = await response.json();
+        setSoldCarsCount(data.count);
+      }
+    } catch (error) {
+      console.error('Error fetching sold cars count:', error);
+    }
   };
 
   useEffect(() => {
@@ -25,10 +43,29 @@ function Dashboard() {
       return;
     }
     const parsedUser = JSON.parse(userData);
+    console.log('Current user data:', parsedUser);
     setUser(parsedUser);
 
     fetchNotifications();
+    fetchSoldCarsCount(parsedUser.id);
   }, [navigate]);
+
+  useEffect(() => {
+    // Set up an event listener for car sales
+    window.addEventListener('carSold', () => {
+      if (user) {
+        fetchSoldCarsCount(user.id);
+      }
+    });
+
+    return () => {
+      window.removeEventListener('carSold', () => {
+        if (user) {
+          fetchSoldCarsCount(user.id);
+        }
+      });
+    };
+  }, [user]);
 
   const handleLogout = () => {
     localStorage.removeItem('user');
@@ -77,18 +114,14 @@ function Dashboard() {
             <h3>Statistics</h3>
             <div style={{ 
               display: 'grid', 
-              gridTemplateColumns: 'repeat(2, 1fr)',
+              gridTemplateColumns: 'repeat(1, 1fr)',
               gap: '15px', 
               marginTop: '15px',
               textAlign: 'center'
             }}>
               <div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>0</div>
+                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{soldCarsCount}</div>
                 <div>Cars Sold</div>
-              </div>
-              <div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold' }}>0</div>
-                <div>Cars Bought</div>
               </div>
             </div>
           </div>
@@ -104,8 +137,18 @@ function Dashboard() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '15px' }}>
               <button onClick={() => navigate('/add-car')}>Add Car</button>
               <button onClick={() => navigate('/messages')}>Messages</button>
-              <button>View Profile</button>
-              <button>Settings</button>
+              <button onClick={() => navigate('/profile')}>View Profile</button>
+              {user.isAdmin === 1 && (
+                <button 
+                  onClick={() => navigate('/admin')}
+                  style={{
+                    backgroundColor: '#dc3545',
+                    color: 'white'
+                  }}
+                >
+                  Admin Settings
+                </button>
+              )}
             </div>
           </div>
 
