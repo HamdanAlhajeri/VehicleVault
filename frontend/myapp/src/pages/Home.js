@@ -10,9 +10,9 @@ function Home() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
     priceRange: {
-      min: 0,
-      max: 200000,
-      current: [0, 200000]
+      min: 0, 
+      max: 2000000,
+      current: [0, 2000000]
     },
     make: '',
     year: '',
@@ -93,7 +93,7 @@ function Home() {
                 <span>{formatPrice(filters.priceRange.current[1])}</span>
               </div>
               <Range
-                step={1000}
+                step={10000}
                 min={filters.priceRange.min}
                 max={filters.priceRange.max}
                 values={filters.priceRange.current}
@@ -102,7 +102,7 @@ function Home() {
                     ...prev,
                     priceRange: {
                       ...prev.priceRange,
-                      current: values
+                      current: values.map(value => Math.round(value / 10000) * 10000)
                     }
                   }))
                 }
@@ -110,7 +110,11 @@ function Home() {
                   <div
                     {...props}
                     className="price-range-track"
-                    style={props.style}
+                    style={{
+                      ...props.style,
+                      height: '6px',
+                      background: '#e9ecef'
+                    }}
                   >
                     {children}
                   </div>
@@ -119,7 +123,13 @@ function Home() {
                   <div
                     {...props}
                     className="price-range-thumb"
-                    style={props.style}
+                    style={{
+                      ...props.style,
+                      height: '20px',
+                      width: '20px',
+                      borderRadius: '50%',
+                      backgroundColor: '#007bff'
+                    }}
                   />
                 )}
               />

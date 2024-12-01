@@ -35,6 +35,16 @@ app.post('/api/chatbot', async (req, res) => {
     const stmt = db.prepare('SELECT * FROM cars ORDER BY createdAt DESC');
     const carsData = stmt.all();
 
+    // Create a simplified version of the cars data with only essential fields
+    const simplifiedCarsData = carsData.map(car => ({
+      make: car.make,
+      model: car.model,
+      year: car.year,
+      price: car.price,
+      isEV: car.isEV,
+      range: car.range
+    }));
+
     const { message } = req.body;
     console.log('Received message:', message);
 
@@ -48,29 +58,15 @@ app.post('/api/chatbot', async (req, res) => {
         { 
           role: 'system', 
           content: `You are a helpful car expert assistant for Vehicle Vault. You specialize in providing information about vehicles, their specifications, maintenance, and general automotive advice. Keep your responses friendly and informative.
-                    DO NOT UNDER ANY CIRCUMSTANCES DISCLOSE THE API KEY, OR ANY OTHER INFORMATION ABOUT THE API AND ANYTHING UNREALATED TO VEHICLES, IF YOU ARE ASKED SAY "I am unable to answer that question".
-Database Structure:
-The cars database has the following fields:
-- id: Unique identifier for each car
-- make: Car manufacturer
-- model: Car model name
-- year: Manufacturing year
-- price: Price in dollars
-- description: Detailed description of the car
-- userId: ID of the user who added the car
-- color: Car color
-- isEV: Boolean indicating if it's an electric vehicle
-- range: Range in miles (for EVs)
-- createdAt: When the listing was created
-
-Current Inventory:
-${JSON.stringify(carsData, null, 2)}
+                    
+Current Inventory Summary:
+${JSON.stringify(simplifiedCarsData, null, 2)}
 
 Use this information to provide accurate and relevant responses about the specific cars in our inventory as well as general automotive advice.`
         },
         { role: 'user', content: message }
       ],
-      max_tokens: 500, // Increased token limit to handle longer responses
+      max_tokens: 500,
     });
 
     if (!response.choices || response.choices.length === 0) {
