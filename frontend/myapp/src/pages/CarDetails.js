@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import Navigation from '../components/Navigation';
 import config from '../config';
+import FinanceCalculator from '../components/FinanceCalculator';
 
 function CarDetails() {
   const { id } = useParams();
@@ -19,6 +20,7 @@ function CarDetails() {
   const [tradeInInput, setTradeInInput] = useState('');
   const [isTradeInLoading, setIsTradeInLoading] = useState(false);
   const [estimatedDiscount, setEstimatedDiscount] = useState(null);
+  const [showFinanceModal, setShowFinanceModal] = useState(false);
 
   // Get today's date in YYYY-MM-DD format
   const today = new Date().toISOString().split('T')[0];
@@ -101,6 +103,19 @@ function CarDetails() {
     }
   };
 
+  const handleFinancingMessage = (financingDetails) => {
+    const message = `Hi, I'm interested in financing this ${car.year} ${car.make} ${car.model}.\n\n` +
+      `Financing Details:\n` +
+      `- Down Payment: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(financingDetails.downPayment)}\n` +
+      `- Loan Term: ${financingDetails.loanTerm} months\n` +
+      `- Monthly Payment: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(financingDetails.monthlyPayment)}\n` +
+      `- Total Cost: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(financingDetails.totalCost)}\n\n` +
+      `Please contact me to discuss this financing option.`;
+
+    setMessageContent(message);
+    setShowMessageModal(true);
+  };
+
   if (loading) {
     return (
       <div>
@@ -127,13 +142,22 @@ function CarDetails() {
   }
 
   return (
-    <div>
+    <div className="page">
       <Navigation />
-      <div className="car-details-container">
-        <button onClick={() => navigate('/')} className="back-button">
+      <div className="back-link" style={{ padding: '20px', marginBottom: '20px' }}>
+        <Link to="/" style={{
+          textDecoration: 'none',
+          color: '#007bff',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '5px',
+          width: 'fit-content'
+        }}>
           ← Back to Home
-        </button>
-        
+        </Link>
+      </div>
+      
+      {car && (
         <div className="car-details">
           <div className="car-images">
             <img 
@@ -256,22 +280,52 @@ function CarDetails() {
                   </div>
                 </div>
 
-                <div className="contact-section">
-                  <h2>Interested in this vehicle?</h2>
-                  <div className="button-group">
-                    <button 
-                      className="contact-button"
-                      onClick={() => setShowMessageModal(true)}
-                    >
-                      Contact Dealer
-                    </button>
-                    <button 
-                      className="trade-in-button"
-                      onClick={() => setShowTradeInModal(true)}
-                    >
-                      Estimate Trade-In Value
-                    </button>
-                  </div>
+                <div style={{ 
+                  display: 'flex', 
+                  gap: '10px', 
+                  marginTop: '20px' 
+                }}>
+                  <button 
+                    onClick={() => setShowMessageModal(true)}
+                    style={{
+                      padding: '10px 20px',
+                      backgroundColor: '#000',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Contact Dealer
+                  </button>
+
+                  <button 
+                    onClick={() => setShowFinanceModal(true)}
+                    style={{
+                      padding: '10px 20px',
+                      backgroundColor: '#0056b3',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Calculate Financing
+                  </button>
+
+                  <button 
+                    onClick={() => setShowTradeInModal(true)}
+                    style={{
+                      padding: '10px 20px',
+                      backgroundColor: '#28a745',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Estimate Trade-In Value
+                  </button>
                 </div>
               </>
             )}
@@ -290,145 +344,187 @@ function CarDetails() {
               </div>
             )}
           </div>
-        </div>
-      </div>
 
-      {showMessageModal && (
-        <div className="modal-overlay">
-          <form onSubmit={handleSendMessage} className="modal-content">
-            <h2>Contact Dealer</h2>
-            <div className="message-input">
-              <label>Message:</label>
-              <textarea
-                value={messageContent}
-                onChange={(e) => setMessageContent(e.target.value)}
-                placeholder="Type your message about this vehicle..."
-                required
-              />
-            </div>
-            <div className="button-container" style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
-              <button type="submit">Send</button>
-              <button type="button" onClick={() => setShowMessageModal(false)}>Cancel</button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {showTradeInModal && (
-        <div className="modal-overlay">
-          <div className="modal-content trade-in-modal">
-            <h2>Trade-In Estimator</h2>
-            <div className="chat-messages">
-              {tradeInMessages.map((msg, index) => (
-                <div
-                  key={index}
-                  className={`message ${msg.role === 'user' ? 'user' : 'assistant'}`}
-                >
-                  {msg.content}
-                </div>
-              ))}
-              {isTradeInLoading && <div className="typing-indicator">Typing...</div>}
-              {estimatedDiscount && (
-                <div className="estimate-result">
-                  <h3>Estimated Trade-In Value:</h3>
-                  <p className="discount-amount">
-                    {new Intl.NumberFormat('en-US', {
-                      style: 'currency',
-                      currency: 'USD',
-                      maximumFractionDigits: 0
-                    }).format(estimatedDiscount)}
-                  </p>
-                </div>
-              )}
-            </div>
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              if (!tradeInInput.trim()) return;
-
-              const userMessage = { role: 'user', content: tradeInInput };
-              setTradeInMessages(prev => [...prev, userMessage]);
-              setIsTradeInLoading(true);
-
-              try {
-                const response = await fetch(`${config.apiUrl}/api/trade-in-estimate`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    message: tradeInInput,
-                    targetCarPrice: car.price,
-                    previousMessages: tradeInMessages
-                  }),
-                });
-
-                const data = await response.json();
-                
-                setTradeInMessages(prev => [...prev, { 
-                  role: 'assistant', 
-                  content: data.reply 
-                }]);
-
-                if (data.estimatedValue) {
-                  setEstimatedDiscount(data.estimatedValue);
-                }
-              } catch (error) {
-                console.error('Trade-in Error:', error);
-                setTradeInMessages(prev => [...prev, { 
-                  role: 'assistant', 
-                  content: 'Sorry, there was an error. Please try again.' 
-                }]);
-              } finally {
-                setIsTradeInLoading(false);
-                setTradeInInput('');
-              }
-            }}>
-              <div className="input-group" style={{ 
-                display: 'flex', 
-                gap: '0.5rem', 
-                margin: '1rem 0',
-                width: '100%' 
-              }}>
-                <input
-                  type="text"
-                  value={tradeInInput}
-                  onChange={(e) => setTradeInInput(e.target.value)}
-                  placeholder="Type your response..."
-                  disabled={isTradeInLoading}
-                  style={{
-                    flex: 1,
-                    padding: '16px',
-                    border: '1px solid #ddd',
-                    borderRadius: '8px',
-                    fontSize: '1.1rem',
-                    minHeight: '50px',
-                    lineHeight: '1.5',
-                    width: '80%'
-                  }}
-                />
+          {showMessageModal && (
+            <div className="modal-overlay">
+              <div className="message-modal">
                 <button 
-                  type="submit" 
-                  disabled={isTradeInLoading}
-                  style={{
-                    padding: '0 24px',
-                    whiteSpace: 'nowrap'
+                  className="close-button"
+                  onClick={() => setShowMessageModal(false)}
+                >
+                  ×
+                </button>
+                <h2>Contact Dealer</h2>
+                <textarea
+                  value={messageContent}
+                  onChange={(e) => setMessageContent(e.target.value)}
+                  placeholder="Type your message here..."
+                />
+                <div className="button-container">
+                  <button 
+                    className="cancel-button"
+                    onClick={() => setShowMessageModal(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    className="send-button"
+                    onClick={handleSendMessage}
+                  >
+                    Send Message
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showTradeInModal && (
+            <div className="modal-overlay">
+              <div className="modal-content trade-in-modal">
+                <h2>Trade-In Estimator</h2>
+                <div className="chat-messages">
+                  {tradeInMessages.map((msg, index) => (
+                    <div
+                      key={index}
+                      className={`message ${msg.role === 'user' ? 'user' : 'assistant'}`}
+                    >
+                      {msg.content}
+                    </div>
+                  ))}
+                  {isTradeInLoading && <div className="typing-indicator">Typing...</div>}
+                  {estimatedDiscount && (
+                    <div className="estimate-result">
+                      <h3>Estimated Trade-In Value:</h3>
+                      <p className="discount-amount">
+                        {new Intl.NumberFormat('en-US', {
+                          style: 'currency',
+                          currency: 'USD',
+                          maximumFractionDigits: 0
+                        }).format(estimatedDiscount)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!tradeInInput.trim()) return;
+
+                  const userMessage = { role: 'user', content: tradeInInput };
+                  setTradeInMessages(prev => [...prev, userMessage]);
+                  setIsTradeInLoading(true);
+
+                  try {
+                    const response = await fetch(`${config.apiUrl}/api/trade-in-estimate`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        message: tradeInInput,
+                        targetCarPrice: car.price,
+                        previousMessages: tradeInMessages
+                      }),
+                    });
+
+                    const data = await response.json();
+                    
+                    setTradeInMessages(prev => [...prev, { 
+                      role: 'assistant', 
+                      content: data.reply 
+                    }]);
+
+                    if (data.estimatedValue) {
+                      setEstimatedDiscount(data.estimatedValue);
+                    }
+                  } catch (error) {
+                    console.error('Trade-in Error:', error);
+                    setTradeInMessages(prev => [...prev, { 
+                      role: 'assistant', 
+                      content: 'Sorry, there was an error. Please try again.' 
+                    }]);
+                  } finally {
+                    setIsTradeInLoading(false);
+                    setTradeInInput('');
+                  }
+                }}>
+                  <div className="input-group" style={{ 
+                    display: 'flex', 
+                    gap: '0.5rem', 
+                    margin: '1rem 0',
+                    width: '100%' 
+                  }}>
+                    <input
+                      type="text"
+                      value={tradeInInput}
+                      onChange={(e) => setTradeInInput(e.target.value)}
+                      placeholder="Type your response..."
+                      disabled={isTradeInLoading}
+                      style={{
+                        flex: 1,
+                        padding: '16px',
+                        border: '1px solid #ddd',
+                        borderRadius: '8px',
+                        fontSize: '1.1rem',
+                        minHeight: '50px',
+                        lineHeight: '1.5',
+                        width: '80%'
+                      }}
+                    />
+                    <button 
+                      type="submit" 
+                      disabled={isTradeInLoading}
+                      style={{
+                        padding: '0 24px',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      Send
+                    </button>
+                  </div>
+                </form>
+                <button 
+                  className="close-button"
+                  onClick={() => {
+                    setShowTradeInModal(false);
+                    setTradeInMessages([]);
+                    setEstimatedDiscount(null);
                   }}
                 >
-                  Send
+                  Close
                 </button>
               </div>
-            </form>
-            <button 
-              className="close-button"
-              onClick={() => {
-                setShowTradeInModal(false);
-                setTradeInMessages([]);
-                setEstimatedDiscount(null);
-              }}
-            >
-              Close
-            </button>
-          </div>
+            </div>
+          )}
+
+          {showFinanceModal && (
+            <div className="modal-overlay" style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 1000
+            }}>
+              <div className="modal-content" style={{
+                background: 'white',
+                padding: '20px',
+                borderRadius: '8px',
+                maxWidth: '500px',
+                width: '90%',
+                position: 'relative'
+              }}>
+                <FinanceCalculator 
+                  carPrice={car.price} 
+                  onClose={() => setShowFinanceModal(false)}
+                  onContactDealer={handleFinancingMessage}
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

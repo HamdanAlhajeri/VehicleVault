@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Navigation from '../components/Navigation';
 import config from '../config';
+import FinanceCalculator from '../components/FinanceCalculator';
 
 function Messages() {
   const [messages, setMessages] = useState([]);

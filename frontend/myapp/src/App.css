@@ -3465,3 +3465,132 @@ button:disabled {
 .trade-in-modal .input-group input {
   width: 80%;
 }
+
+/* ... existing styles remain unchanged ... */
+
+/* Finance Calculator Styles */
+.finance-calculator {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  margin-top: 1.5rem;
+}
+
+.calculator-inputs {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.calculator-inputs .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.calculator-inputs input,
+.calculator-inputs select {
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.calculator-results {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 4px;
+}
+
+.result-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #ddd;
+}
+
+.result-item:last-child {
+  border-bottom: none;
+}
+
+.result-item .amount {
+  font-weight: bold;
+  color: #28a745;
+}
+
+/* Message Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  overflow-y: auto; /* Allow scrolling on overlay */
+  padding: 20px; /* Add padding to ensure modal doesn't touch edges */
+}
+
+.message-modal {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  position: relative;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  max-height: 90vh; /* Limit height to 90% of viewport */
+  display: flex;
+  flex-direction: column;
+}
+
+.message-modal h2 {
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+  color: #333;
+}
+
+.message-modal textarea {
+  width: 100%;
+  min-height: 150px;
+  max-height: calc(90vh - 200px); /* Adjust based on header and buttons height */
+  padding: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-size: 1rem;
+  resize: vertical;
+  font-family: inherit;
+  overflow-y: auto; /* Enable scrolling in textarea */
+}
+
+.message-modal .button-container {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: auto; /* Push buttons to bottom */
+}
+
+/* Rest of your existing message modal styles... */
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .modal-overlay {
+    padding: 10px;
+  }
+
+  .message-modal {
+    width: 100%;
+    padding: 1.5rem;
+    max-height: 95vh; /* Slightly larger on mobile */
+  }
+  
+  .message-modal textarea {
+    max-height: calc(95vh - 180px);
+  }
+}
