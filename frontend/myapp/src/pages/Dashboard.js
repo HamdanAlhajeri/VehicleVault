@@ -7,6 +7,10 @@ function Dashboard() {
   const [user, setUser] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [soldCarsCount, setSoldCarsCount] = useState(0);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [updateError, setUpdateError] = useState('');
   const navigate = useNavigate();
 
   const fetchNotifications = () => {
@@ -86,6 +90,35 @@ function Dashboard() {
     }
   };
 
+  const handleUpdateUser = async () => {
+    try {
+      const response = await fetch(`${config.apiUrl}/api/users/${user.id}/update`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: newEmail || undefined,
+          password: newPassword || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update user');
+      }
+
+      const updatedUser = await response.json();
+      setUser({ ...user, email: updatedUser.email });
+      setShowUpdateModal(false);
+      setNewEmail('');
+      setNewPassword('');
+      setUpdateError('');
+    } catch (error) {
+      setUpdateError('Failed to update user details');
+      console.error('Error updating user:', error);
+    }
+  };
+
   if (!user) return null;
 
   return (
@@ -149,6 +182,15 @@ function Dashboard() {
                   Admin Settings
                 </button>
               )}
+              <button 
+                onClick={() => setShowUpdateModal(true)}
+                style={{
+                  backgroundColor: '#4a90e2',
+                  color: 'white'
+                }}
+              >
+                Update Account Details
+              </button>
             </div>
           </div>
 
@@ -268,6 +310,71 @@ function Dashboard() {
             </div>
           </div>
         </div>
+
+        {/* Update Modal */}
+        {showUpdateModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000
+          }}>
+            <div style={{
+              background: 'white',
+              padding: '20px',
+              borderRadius: '8px',
+              width: '90%',
+              maxWidth: '400px'
+            }}>
+              <h2>Update Account Details</h2>
+              {updateError && <p style={{ color: 'red' }}>{updateError}</p>}
+              <div style={{ marginBottom: '15px' }}>
+                <label>New Email (optional):</label>
+                <input
+                  type="email"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+                />
+              </div>
+              <div style={{ marginBottom: '15px' }}>
+                <label>New Password (optional):</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  style={{ width: '100%', padding: '8px', marginTop: '5px' }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button 
+                  onClick={() => setShowUpdateModal(false)}
+                  style={{ padding: '8px 16px' }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleUpdateUser}
+                  style={{ 
+                    padding: '8px 16px',
+                    backgroundColor: '#4a90e2',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px'
+                  }}
+                >
+                  Update
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

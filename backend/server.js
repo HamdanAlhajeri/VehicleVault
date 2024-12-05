@@ -5,6 +5,7 @@ const path = require('path');
 const authRoutes = require('./routes/auth');
 const db = require('./config/db');
 const nodemailer = require('nodemailer');
+const bcrypt = require('bcrypt');
 
 require('dotenv').config();
 
@@ -884,6 +885,59 @@ app.post('/api/trade-in-estimate', async (req, res) => {
     res.status(500).json({ 
       error: error.message || 'Failed to process trade-in request'
     });
+  }
+});
+
+// Update user details
+app.put('/api/users/:id/update', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { email, password } = req.body;
+    
+    // Get current user data
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    let updates = [];
+    let values = [];
+
+    if (email) {
+      updates.push('email = ?');
+      values.push(email);
+    }
+
+    if (password) {
+      // Hash the new password
+      const hashedPassword = await bcrypt.hash(password, 10);
+      updates.push('password = ?');
+      values.push(hashedPassword);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ message: 'No updates provided' });
+    }
+
+    // Add user ID to values array
+    values.push(id);
+
+    const updateQuery = `
+      UPDATE users 
+      SET ${updates.join(', ')} 
+      WHERE id = ?
+    `;
+
+    const stmt = db.prepare(updateQuery);
+    stmt.run(...values);
+
+    // Return updated user (excluding password)
+    const updatedUser = db.prepare('SELECT id, name, email, isAdmin FROM users WHERE id = ?').get(id);
+    res.json(updatedUser);
+
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ message: 'Error updating user', error: error.message });
   }
 });
 
