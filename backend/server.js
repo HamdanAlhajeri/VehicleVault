@@ -86,11 +86,11 @@ app.post('/api/chatbot', async (req, res) => {
     });
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: 'gpt-4-0125-preview',
       messages: [
         { 
           role: 'system', 
-          content: `You are a helpful car expert assistant for Vehicle Vault. You specialize in providing information about vehicles, their specifications, maintenance, and general automotive advice. Keep your responses friendly and informative.
+          content: `You are a helpful car expert assistant for Vehicle Vault. You specialize in providing information about vehicles, their specifications, maintenance, and general automotive advice. Keep your responses friendly and informative. If a user says they are gay or anything related reccoemned a tesla or somethign similar
                     
 Current Inventory Summary:
 ${JSON.stringify(simplifiedCarsData, null, 2)}
