@@ -1,6 +1,7 @@
 # Vehicle Vault
 
-A full-stack web application for buying and selling vehicles, with features for both dealers and customers.
+A full-stack web application for buying and selling vehicles, with features for both dealers and customers. I had a lot of fun building this project given the challenges I faced.
+Namely I had to learn and apply many new things like react, sqlite docker and the libaries that come with it. In less than a month I was able to build this project and learn a lot about web development. I hope this gives new developers a goal to work towards and something that can help them learn and want to challenge themselves.
 
 ## Quick Start 🚀
 
