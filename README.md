@@ -2,6 +2,64 @@
 
 A full-stack web application for buying and selling vehicles, with features for both dealers and customers.
 
+## Quick Start 🚀
+
+### Prerequisites
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- Windows 10/11 or newer
+
+### One-Click Deployment
+
+1. Download and install Docker Desktop
+2. Start Docker Desktop
+3. Double-click `run.bat` (or `run.ps1` for PowerShell)
+
+That's it! The application will automatically:
+- Create necessary configuration files
+- Build and start all services
+- Open the application in your default browser
+
+The application will be available at:
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:3001
+
+### Configuration (Optional)
+
+To enable all features, edit `backend/.env` with your API keys:
+
+```env
+PORT=3001
+OPENAI_API_KEY=your_openai_api_key
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASSWORD=your_email_app_password
+```
+
+### Setting Up Gmail App Password
+
+To use email features, you'll need to create an App Password for Gmail:
+
+1. Go to your Google Account settings
+   - Visit [Google Account Security](https://myaccount.google.com/security)
+   - Make sure 2-Step Verification is enabled
+
+2. Create App Password
+   - Scroll to "2-Step Verification"
+   - Scroll to the bottom and click on "App passwords"
+   - Click "Select app" and choose "Mail"
+   - Click "Select device" and choose "Other"
+   - Enter "Vehicle Vault" as the name
+   - Click "Generate"
+
+3. Copy the generated 16-character password
+   - This is your `EMAIL_PASSWORD` for the .env file
+   - The password looks like: xxxx xxxx xxxx xxxx
+
+4. Update your .env file
+   - Set `EMAIL_USER` to your Gmail address
+   - Set `EMAIL_PASSWORD` to the generated app password
+
+Note: Keep your app password secure and never share it. You can revoke app passwords at any time from your Google Account settings.
+
 ## Features
 
 ### Car Listings
@@ -116,8 +174,7 @@ npm install
 ```bash
 cd frontend/myapp
 npm install
-```
-## In backend/.env
+```## In backend/.env
 
 ```bash
 PORT=3001
